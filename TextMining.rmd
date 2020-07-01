@@ -1,0 +1,70 @@
+---
+title: "Text Mining"
+author: "Abhijeet Deshmukh"
+date: "2 April 2019"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readr)
+library(tidyverse)
+library(tokenizers)
+library(tidytext)
+library(purrr)
+library(modelr)
+library(mlbench)
+```
+
+```{r, Problem 3}
+x <- read_lines("full_speech.txt")
+speech <- tibble(line=1:length(x), text=x)
+tidy_speech <- unnest_tokens(speech, word, text, token="ngrams", n=2) %>% count(word, sort=TRUE)
+
+tidy_speech1 <- tidy_speech %>% 
+  separate(word, c("word1", "word2"), sep=" ") %>%
+  filter(!word1 %in% c(stop_words$word,"applause")) %>%
+  filter(!word2 %in% c(stop_words$word,"applause")) %>%
+  filter(!word1 %in% c("never", "no", "not", "without"))%>%
+  unite(word, word1, word2, sep=" ") %>%
+  top_n(15)
+tidy_speech1 %>%
+  ggplot(aes(x=reorder(word,n), y=n, fill="Red")) +  geom_col(show.legend = "false") +
+coord_flip() + xlab("Words")
+```
+
+```{r, Problem4}
+tidy_speech2 <- tidy_speech %>% 
+  separate(word, c("word1", "word2"), sep=" ") %>%
+  filter(word1 %in% c("never", "no", "not", "without")) %>%
+  filter(!word2 %in% c(stop_words$word,"applause")) %>%
+  group_by(word1) %>%
+  top_n(5)
+
+tidy_speech2 %>%
+  ggplot(aes(x=reorder(word2,n), y=n,fill=word1  )) +
+  geom_col(show.legend = "false") + 
+  facet_wrap(~word1, scales="free") + 
+  coord_flip() + theme(axis.text.y=element_text(size=5)) + xlab("Words")
+```
+
+Problem 5
+```{r, problem5}
+loughran <- get_sentiments("loughran")
+tidy_speech3 <- tidy_speech %>% 
+  separate(word, c("word1", "word2"), sep=" ") %>%
+  filter(!word1 %in% c("never", "no", "not", "without")) %>%
+  filter(!word2 %in% c(stop_words$word,"applause"))
+tidy_speech4 <- inner_join(tidy_speech3, loughran, by=c("word2"="word")) %>%
+  unite(word, word1, word2, sep=" ") %>%
+  transmute(sentiment=as.factor(sentiment),word,n) %>%
+  arrange(desc(n))%>%group_by(sentiment) %>% top_n(5)
+
+
+tidy_speech4%>%ggplot(aes(word,n,fill=sentiment)) + geom_col(show.legend = FALSE) + 
+facet_wrap(~ sentiment, ncol = 2 ,scales = "free") + coord_flip() +
+  theme(axis.text.y=element_text(size=5))
+```
+
